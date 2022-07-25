@@ -30,3 +30,5 @@ for pos in pos_snp_dic:
 		for snp in snp_list:
 			if snp != name:
 				print(snp, file = OUT)
+
+OUT.close()
