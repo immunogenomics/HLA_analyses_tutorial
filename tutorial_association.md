@@ -2,6 +2,10 @@
 
 
 
+Author: Saori Sakaue (ssakaue@broadinstitute.org)
+
+Lastly updated: 07/28/2022
+
 
 
 ## HLA association and fine-mapping
@@ -23,8 +27,8 @@ If you use `SNP2HLA.csh`,  `SNP2HLA.py` or MIS, you do not have to do this proce
 
 
 ```bash
-refVCF="/data/srlab/ssakaue/share/forSid/Tutorial_1KGonly"
-output="/data/srlab/ssg34/HLA_tutorial/data/imputation/MM3/hgdp_all_chr6.hg19.ba.only.GSA.final.SHAPEIT.imputed"
+refVCF="data/Tutorial_1KGonly"
+output="hgdp_chr6.final.EAGLE.phased.imputed"
 
 zcat ${refVCF}.vcf.gz | grep -v "#" | awk '{print $2,$3,$4,$5}' > ${refVCF}.converter
 
