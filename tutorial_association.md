@@ -256,7 +256,7 @@ First, we extract two-field allele dosages from the imputed genotype after QC.
 
 We convert the imputed dosages into a table (`.raw` file, rows are samples and columns are alleles ) for these alleles by `plink2`. Please note that we use some tricks to avoid having special characters in the alleles such as "*" and ":" by replacing them with "_" (underscore) with `sed` command as shown below.
 
-e.g., HLA-DRB1*04:01 will be converted to HLA-DRB1_04_01
+e.g., `HLA_DRB1*04:01` will be converted to `HLA_DRB1_04_01`
 
 
 
