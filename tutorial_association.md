@@ -4,7 +4,7 @@
 
 Author: Saori Sakaue (ssakaue@broadinstitute.org)
 
-Lastly updated: 07/28/2022
+Lastly updated: 11/08/2022
 
 
 
@@ -27,10 +27,18 @@ If you use `SNP2HLA.csh`,  `SNP2HLA.py` or MIS, you do not have to do this proce
 
 
 ```bash
-refVCF="data/Tutorial_1KGonly"
+refVCF="data/Tutorial_1KGonly.bgl.phased"
 output="hgdp_chr6.final.EAGLE.phased.imputed"
 
+# first, we create a correspondence file between position and the allele name in the reference VCF.
 zcat ${refVCF}.vcf.gz | grep -v "#" | awk '{print $2,$3,$4,$5}' > ${refVCF}.converter
+
+head ${refVCF}.converter
+#27970031 rs149946 G T
+#27976200 rs9380032 G T
+#27979188 rs4141691 A G
+#27979625 rs10484402 A G
+#27981673 rs9368540 G A
 
 python script_assoc/convert_vcf_allele.py ${output}.dose.vcf.gz ${refVCF}.converter data_assoc/converted.info | bgzip -c > data_assoc/converted.vcf.gz
 ```
@@ -39,7 +47,42 @@ python script_assoc/convert_vcf_allele.py ${output}.dose.vcf.gz ${refVCF}.conver
 
 `data_assoc/converted.info` provides R2 and AF information embedded in the VCF file.
 
+```bash
+head data_assoc/converted.info
+
+#SNP	CHRPOS	REF	ALT	R2	AF
+#rs149946	6:27970031	G	T	0.85845	0.20976
+#rs9380032	6:27976200	G	T	0.83970	0.07228
+#rs4141691	6:27979188	A	G	0.92693	0.12770
+#rs10484402	6:27979625	A	G	0.76467	0.10351
+
+```
+
 `data_assoc/converted.vcf.gz` is the output imputed VCF file with corrected variant names.
+
+```bash
+zcat data_assoc/converted.vcf.gz | less -S
+
+##fileformat=VCFv4.1
+##filedate=2022.7.18
+##source=Minimac3
+##contig=<ID=6>
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=DS,Number=1,Type=Float,Description="Estimated Alternate Allele Dosage : [P(0/1)+2*P(1/1)]">
+##INFO=<ID=AF,Number=1,Type=Float,Description="Estimated Alternate Allele Frequency">
+##INFO=<ID=MAF,Number=1,Type=Float,Description="Estimated Minor Allele Frequency">
+##INFO=<ID=R2,Number=1,Type=Float,Description="Estimated Imputation Accuracy">
+##INFO=<ID=ER2,Number=1,Type=Float,Description="Empirical (Leave-One-Out) R-square (available only for genotyped var>
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  HGDP00309
+6       27970031        rs149946        G       T       .       PASS    AF=0.20976;MAF=0.20976;R2=0.85845
+6       27976200        rs9380032       G       T       .       PASS    AF=0.07228;MAF=0.07228;R2=0.83970
+6       27979188        rs4141691       A       G       .       PASS    AF=0.12770;MAF=0.12770;R2=0.92693
+6       27979625        rs10484402      A       G       .       PASS    AF=0.10351;MAF=0.10351;R2=0.76467
+6       27981673        rs9368540       G       A       .       PASS    AF=0.08438;MAF=0.08438;R2=0.82351
+6       27984726        rs74505854      A       C       .       PASS    AF=0.03692;MAF=0.03692;R2=0.91953
+```
+
+
 
 
 
@@ -96,7 +139,7 @@ cov <- read.table("data_assoc/covariates.txt", header=T)
 
 d <- merge(d, pheno, by = "IID")
 d <- merge(d, cov, by = "IID")
-d$trait_name <- d$trait_name - 1 # cases to be 1 and controls to be 0
+d$trait_name <- d$trait_name - 1 # cases should be coded as 1 and controls should be coded as 0
 
 # if you want to test for HLA_A*01:01
 summary(glm(trait_name ~ HLA_A.01.01_T + sex + PC1 + PC2, data = d, family = binomial))
@@ -146,6 +189,22 @@ In this example, we also apply QC to extract any amino acid polymorphisms with *
 sed 1d data_assoc/converted.info | grep "^AA_" | awk '{if($5>0.7)print $1}' > QCed_AA_variants.txt
 sed 1d data_assoc/converted.info | grep "^AA_" | awk '{if($5>0.7)print $1,"T"}' > QCed_AA_variants_alleles.txt
 
+# an extracted variant list for AAs
+head QCed_AA_variants.txt
+#AA_A_-22_29910338_exon1_I
+#AA_A_-22_29910338_exon1_V
+#AA_A_-15_29910359_exon1_L
+#AA_A_-15_29910359_exon1_V
+#AA_A_-11_29910371_exon1_L
+
+# We want to create a table of dosage for "presence" = "T" allele of these AAs
+head QCed_AA_variants_alleles.txt
+#AA_A_-22_29910338_exon1_I T
+#AA_A_-22_29910338_exon1_V T
+#AA_A_-15_29910359_exon1_L T
+#AA_A_-15_29910359_exon1_V T
+#AA_A_-11_29910371_exon1_L T
+
 plink2 --pfile ${imputed} \
   --extract QCed_AA_variants.txt \
   --export-allele QCed_AA_variants_alleles.txt \
@@ -194,6 +253,12 @@ AA_A_43_29910660_exon2	0.523234132611833	0.769805751833586
 ### Conditional haplotype test
 
 First, we extract two-field allele dosages from the imputed genotype after QC.
+
+We convert the imputed dosages into a table (`.raw` file, rows are samples and columns are alleles ) for these alleles by `plink2`. Please note that we use some tricks to avoid having special characters in the alleles such as "*" and ":" by replacing them with "_" (underscore) with `sed` command as shown below.
+
+e.g., HLA-DRB1*04:01 will be converted to HLA-DRB1_04_01
+
+
 
 ```bash
 sed 1d data_assoc/converted.info | grep "^HLA_" | cut -f1,5 | grep ":" | awk '{if($2>0.7)print $1}' > QCed_HLA_tf.txt
@@ -419,7 +484,7 @@ plink2 --vcf ${imputed}.vcf.gz \
   --export A \
   --out ${imputed}.QCed_HLA_tf.best_guess
 
-# Here we do not specify dosage and export the data to a amtrix
+# Here we do not specify dosage and rather use best-guess genotype to export the data to a matrix
 
 # output HLA names without "_T", "*", and ":" as a workaround in R
 head -n1 ${imputed}.QCed_HLA_tf.best_guess.raw | cut -f7- | tr "\t" "\n" | sed -e "s/_T$//" | sed 's/*/_/' | sed 's/:/_/'  > ${imputed}.QCed_HLA_tf.best_guess.allele_name.txt
@@ -482,7 +547,7 @@ out
 
 Let's test interaction between two HLA alleles of the same gene.
 
-As we explained in the manuscript, it is sometimes important to restrict the analyses to common alleles. The rare * rare allele combination could yield inflated statistics due to the noisy estimate of the effect sizes for both alleles.
+As we explained in the manuscript, it is sometimes important to restrict the analyses to common alleles. The rare x rare allele combination could yield inflated statistics due to the noisy estimate of the effect sizes for both alleles.
 
 If we decide to QC based on MAF > 0.05 for this interaction analysis,
 
@@ -496,7 +561,6 @@ plink2 --pfile ${imputed} \
 
 # output HLA names without "_T", "*", and ":" as a workaround in R
 head -n1 ${imputed}.QCed_HLA_tf.MAF.raw | cut -f7- | tr "\t" "\n" | sed -e "s/_T$//" | sed 's/*/_/' | sed 's/:/_/'  > ${imputed}.QCed_HLA_tf.MAF.allele_name.txt
-
 
 ```
 
