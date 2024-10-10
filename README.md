@@ -12,9 +12,9 @@ The tutorial consists of two parts:
 
   
 
-*** Note for Michigan Imputation Server users ***
+### Note for Michigan Imputation Server users
 
-For the amino acid (AA) residue imputation, sometimes the imputed residue is not clear from the post imputation VCF. Please use [this `bim` file] that summarizes all information about AA residue names (in the 2nd column) that appear on the imputed VCF and the binary allele (residue) difinitions (in the 5th and 6th columns). 
+For the amino acid (AA) residue imputation, sometimes the imputed residue is not clear from the post imputation VCF. Please use [this `bim` file](https://github.com/immunogenomics/HLA_analyses_tutorial/blob/main/data/AA_annotated.bim) that summarizes all information about AA residue names (in the 2nd column) that appear on the imputed VCF and the binary allele (residue) difinitions (in the 5th and 6th columns). 
 
 For further naming schemes, please also refer to [this website](https://software.broadinstitute.org/mpg/snp2hla/makereference_manual.html) at the sections of 'Marker Nomenclature'.  
 
